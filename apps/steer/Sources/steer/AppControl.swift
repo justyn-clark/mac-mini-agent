@@ -39,6 +39,25 @@ enum AppControl {
         }
     }
 
+    static func hide(_ name: String) throws {
+        guard let app = find(name) else { throw SteerError.appNotFound(name) }
+        app.hide()
+    }
+
+    static func unhide(_ name: String) throws {
+        guard let app = find(name) else { throw SteerError.appNotFound(name) }
+        app.unhide()
+        app.activate(options: .activateIgnoringOtherApps)
+    }
+
+    static func quit(_ name: String, force: Bool = false) throws {
+        guard let app = find(name) else { throw SteerError.appNotFound(name) }
+        let ok = force ? app.forceTerminate() : app.terminate()
+        if !ok {
+            throw SteerError.windowActionFailed(force ? "force-quit" : "quit", name)
+        }
+    }
+
     static func frontmost() -> NSRunningApplication? {
         NSWorkspace.shared.frontmostApplication
     }

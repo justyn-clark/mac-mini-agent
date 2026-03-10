@@ -12,6 +12,11 @@ enum SteerError: LocalizedError {
     case clipboardEmpty(String)
     case waitTimeout(String, Double)
     case ocrFailed(String)
+    case approvalNotFound(String)
+    case approvalExpired(String)
+    case approvalRevoked(String)
+    case approvalExhausted(String)
+    case approvalMismatch(expected: String, actual: String)
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +31,11 @@ enum SteerError: LocalizedError {
         case .clipboardEmpty(let type): return "Clipboard has no \(type) content"
         case .waitTimeout(let cond, let sec): return "Timeout after \(Int(sec))s waiting for \(cond)"
         case .ocrFailed(let msg): return "OCR failed: \(msg)"
+        case .approvalNotFound(let id): return "Approval not found: \(id)"
+        case .approvalExpired(let id): return "Approval expired: \(id)"
+        case .approvalRevoked(let id): return "Approval revoked: \(id)"
+        case .approvalExhausted(let id): return "Approval already consumed: \(id)"
+        case .approvalMismatch(let expected, let actual): return "Approval mismatch: expected \(expected), got \(actual)"
         }
     }
 }

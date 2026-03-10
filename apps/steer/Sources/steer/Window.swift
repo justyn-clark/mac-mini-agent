@@ -3,7 +3,7 @@ import Foundation
 
 struct Window: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Manage app windows: move, resize, minimize, fullscreen, close."
+        abstract: "Inspect or perform tightly-scoped window actions: move, resize, minimize, restore, fullscreen, close."
     )
 
     @Argument(help: "Action: list | move | resize | minimize | restore | fullscreen | close")
@@ -23,6 +23,9 @@ struct Window: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "Height (for resize)")
     var height: Double?
+
+    @Option(name: .long, help: "Approval contract id for stronger actions like close")
+    var approval: String?
 
     @Flag(name: .long, help: "Output JSON")
     var json = false
@@ -62,8 +65,10 @@ struct Window: ParsableCommand {
             try WindowControl.fullscreen(appName: app)
             print(json ? "{\"action\":\"fullscreen\",\"app\":\"\(app)\",\"ok\":true}" : "Toggled fullscreen for \(app)")
         case "close":
+            guard let approval else { throw ValidationError("close requires --approval") }
+            try ApprovalControl.validate(approval, action: "steer.window.close", target: "app:\(app)")
             try WindowControl.close(appName: app)
-            print(json ? "{\"action\":\"close\",\"app\":\"\(app)\",\"ok\":true}" : "Closed \(app) window")
+            print(json ? "{\"action\":\"close\",\"app\":\"\(app)\",\"approval\":\"\(approval)\",\"ok\":true}" : "Closed \(app) window")
         default:
             throw ValidationError("Action must be: list, move, resize, minimize, restore, fullscreen, close")
         }

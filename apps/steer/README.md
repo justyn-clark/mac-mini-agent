@@ -2,7 +2,9 @@
 
 **macOS automation CLI for AI agents.** Give your agent the wheel.
 
-7 commands, 1 binary, ~750 lines of Swift. Wraps CGEvent, AXUIElement, CGWindowListCreateImage, NSWorkspace, and NSScreen.
+Steer is intentionally split into inspect and act surfaces. Observe first with `see`, `ocr`, `find`, `focus`, `wait`, and `screens`. Act second with narrowly-scoped verbs like `click`, `type`, `hotkey`, `window`, `apps`, and `clipboard`.
+
+Stronger actions are approval-gated through the same short-lived contract model used by Drive.
 
 ## Install
 
@@ -57,6 +59,7 @@ steer hotkey cmd+s
 steer hotkey cmd+shift+n
 steer hotkey return
 steer hotkey escape
+steer hotkey cmd+q --approval <id>   # stronger combo, approval required
 ```
 
 ### scroll — Scroll by lines
@@ -74,6 +77,10 @@ steer scroll right 2
 steer apps list                  # running apps with PIDs
 steer apps launch Safari         # open an app
 steer apps activate "VS Code"   # bring to front
+steer apps hide Safari
+steer apps unhide Safari
+steer apps quit Safari --approval <id>
+steer apps force-quit Safari --approval <id>
 ```
 
 ### screens — Display info
@@ -122,6 +129,22 @@ The `--screen` flag on `click` handles coordinate translation (screen offset + R
 | M | Menu item / menu bar item |
 | TB | Tab |
 | E | Other |
+
+### Approval-gated actions
+
+Examples:
+
+```bash
+# from Drive
+# drive approval issue --action steer.window.close --target app:Safari --ttl 300 --uses 1 --json
+
+steer window close Safari --approval <id>
+steer apps quit Safari --approval <id>
+steer clipboard write "hello" --approval <id>
+steer hotkey cmd+q --approval <id>
+```
+
+The point is to keep strong actions explicit, bounded, and easy to audit.
 
 ## JSON Mode
 

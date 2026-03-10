@@ -54,6 +54,8 @@ If your agent can write code but can't ship it — Steer and Drive close that ga
 
 Steer gives agents the ability to see, interact with, and control any macOS application through screenshots, OCR, accessibility trees, and input simulation.
 
+The expansion path is deliberate: inspect first, then narrowly-scoped act primitives. Stronger actions like app quit, window close, clipboard writes, and risky hotkeys can be bound to approval contracts instead of exposing a vague catch-all action surface.
+
 <p align="center">
   <img src="assets/diagrams/steer-command-fan.svg" alt="Steer Commands" width="600"/>
 </p>
@@ -66,9 +68,9 @@ Steer gives agents the ability to see, interact with, and control any macOS appl
 | `hotkey`    | Send keyboard shortcuts (cmd+s, cmd+tab, etc.)      |
 | `scroll`    | Scroll in any direction within an app               |
 | `drag`      | Drag from one point to another                      |
-| `apps`      | List running applications                           |
+| `apps`      | Inspect apps and perform scoped app actions         |
 | `screens`   | List available displays                             |
-| `window`    | Move, resize, and manage windows                    |
+| `window`    | Inspect windows and perform scoped window actions   |
 | `ocr`       | Extract text from screen via Vision framework       |
 | `focus`     | Activate and focus a specific application           |
 | `find`      | Locate UI elements on screen                        |

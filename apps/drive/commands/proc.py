@@ -4,6 +4,7 @@ import signal
 import click
 
 from modules import proc
+from modules.approval import validate_approval
 from modules.errors import DriveError
 from modules.output import emit, emit_error
 
@@ -54,8 +55,9 @@ def list_cmd(name: str | None, session: str | None, parent: int | None, cwd: str
 @click.option("--signal", "sig", default=15, type=int, help="Signal number (default: 15/SIGTERM).")
 @click.option("--force", is_flag=True, help="Send SIGKILL (9) immediately, skip graceful shutdown.")
 @click.option("--tree", "tree", is_flag=True, help="Kill process and all its children.")
+@click.option("--approval", default=None, help="Optional approval contract id for proc.kill.")
 @click.option("--json", "as_json", is_flag=True, help="Output JSON.")
-def kill(pid: int | None, name: str | None, sig: int, force: bool, tree: bool, as_json: bool):
+def kill(pid: int | None, name: str | None, sig: int, force: bool, tree: bool, approval: str | None, as_json: bool):
     """Kill a process by PID or name.
 
     Uses a two-step pattern: sends the signal, waits up to 5s,
@@ -72,8 +74,13 @@ def kill(pid: int | None, name: str | None, sig: int, force: bool, tree: bool, a
         return
 
     try:
+        if approval:
+            target = f"pid:{pid}" if pid is not None else f"name:{name}"
+            validate_approval(approval, action="proc.kill", target=target, consume=True)
         result = proc.kill_process(pid=pid, name=name, sig=sig, tree=tree)
         data = result.to_dict()
+        if approval:
+            data["approval"] = approval
         if as_json:
             emit(data, json=True, human_lines="")
         else:

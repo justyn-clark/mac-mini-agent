@@ -1,7 +1,8 @@
-"""Session management: create, list, kill."""
+"""Session management: create, list, kill, and inspect."""
 import click
 
 from modules import tmux
+from modules.approval import validate_approval
 from modules.errors import DriveError
 from modules.output import emit, emit_error
 
@@ -64,15 +65,48 @@ def list_cmd(as_json: bool):
 
 @session.command()
 @click.argument("name")
+@click.option("--approval", default=None, help="Optional approval contract id for session.kill/session:<name>.")
 @click.option("--json", "as_json", is_flag=True, help="Output JSON.")
-def kill(name: str, as_json: bool):
+def kill(name: str, approval: str | None, as_json: bool):
     """Kill a tmux session."""
     try:
+        if approval:
+            validate_approval(approval, action="session.kill", target=f"session:{name}", consume=True)
         tmux.kill_session(name)
         emit(
-            {"ok": True, "action": "kill", "session": name},
+            {"ok": True, "action": "kill", "session": name, "approval": approval},
             json=as_json,
             human_lines=f"Killed session: {name}",
         )
+    except DriveError as e:
+        emit_error(e, json=as_json)
+
+
+@session.command("inspect")
+@click.argument("name")
+@click.option("--json", "as_json", is_flag=True, help="Output JSON.")
+def inspect_cmd(name: str, as_json: bool):
+    """Inspect one tmux session: windows, panes, PIDs, and cwd."""
+    try:
+        snapshot = tmux.inspect_session(name)
+        if as_json:
+            emit({"ok": True, **snapshot.to_dict()}, json=True, human_lines="")
+            return
+
+        lines = [
+            f"Session: {snapshot.session.name}",
+            f"  windows: {snapshot.session.windows}",
+            f"  created: {snapshot.session.created}",
+            f"  attached: {'yes' if snapshot.session.attached else 'no'}",
+        ]
+        for window in snapshot.windows:
+            marker = "*" if window.active else "-"
+            lines.append(f"{marker} window {window.window_index}: {window.name} [{window.layout}]")
+            for pane in window.panes:
+                active = "*" if pane.active else "-"
+                lines.append(
+                    f"    {active} pane {pane.pane_index} pid={pane.pane_pid} cmd={pane.current_command} cwd={pane.current_path}"
+                )
+        emit({"ok": True, **snapshot.to_dict()}, json=False, human_lines=lines)
     except DriveError as e:
         emit_error(e, json=as_json)

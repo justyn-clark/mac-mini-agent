@@ -18,6 +18,7 @@ drive session create agent-1 --json                     # Opens a Terminal windo
 drive session create agent-1 --window build --json      # Named window, headed
 drive session create agent-1 --detach --json            # Headless (no Terminal window)
 drive session list --json                                # List all sessions
+drive session inspect agent-1 --json                     # Discover windows, panes, pane PIDs, cwd
 drive session kill agent-1 --json                        # Kill a session
 ```
 
@@ -80,7 +81,9 @@ Runs command in all target sessions concurrently using ThreadPoolExecutor. Retur
 - **Use `poll` to wait for async events** — Watch for build completion, server startup, etc.
 - **Use `logs` to inspect** — Check what happened in a pane
 - **Use `fanout` for parallel work** — Run same command across multiple sessions
+- **Use `session inspect` for tmux discovery** — Windows, panes, pane PIDs, active command, cwd
 - **Use `proc` for process management** — List, kill, and inspect processes instead of raw ps/kill
+- **Use `approval` for destructive actions** — Issue short-lived single-use contracts, then consume them on kill operations
 - **Use `--json` always** — Structured output for reliable parsing
 - **Write all files to /tmp** — Any JSON, logs, or other files you generate must go to `/tmp/`. Never write output files into the project directory.
 
@@ -97,11 +100,26 @@ drive proc list --cwd /path/to/project --json             # Processes running fr
 drive proc kill 12345 --json                              # Kill by PID (SIGTERM → wait → SIGKILL)
 drive proc kill --name "claude" --json                    # Kill all matching name
 drive proc kill 12345 --tree --json                       # Kill PID and all children
-drive proc kill 12345 --force --json                       # Force kill (SIGKILL, no grace period)
+drive proc kill 12345 --force --json                      # Force kill (SIGKILL, no grace period)
 drive proc kill 12345 --signal 9 --json                   # Same as --force
 drive proc tree 12345 --json                              # Show process tree from PID
 drive proc top --session job-abc123 --json                # Resource snapshot for session
 drive proc top --pid 12345,12346 --json                   # Resource snapshot for specific PIDs
+```
+
+### approval — Shared approval contracts
+
+Use approvals for dangerous actions that should be short-lived, revocable, or single-use.
+
+```bash
+drive approval issue --action proc.kill --target pid:12345 --ttl 300 --uses 1 --json
+drive approval issue --action session.kill --target session:agent-1 --ttl 300 --uses 1 --json
+drive approval show <approval-id> --json
+drive approval list --active-only --json
+drive approval revoke <approval-id> --json
+
+drive proc kill 12345 --approval <approval-id> --json
+drive session kill agent-1 --approval <approval-id> --json
 ```
 
 Each process includes `cwd` (working directory) in its JSON output — use this to identify processes spawned from a specific project or directory.

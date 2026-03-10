@@ -8,7 +8,7 @@ import platform
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from modules.errors import (
     SessionExistsError,
@@ -73,6 +73,60 @@ class SessionInfo:
             "windows": self.windows,
             "created": self.created,
             "attached": self.attached,
+        }
+
+
+@dataclass
+class PaneInfo:
+    pane_id: str
+    pane_index: int
+    pane_pid: int
+    title: str
+    current_command: str
+    current_path: str
+    active: bool
+
+    def to_dict(self) -> dict:
+        return {
+            "pane_id": self.pane_id,
+            "pane_index": self.pane_index,
+            "pane_pid": self.pane_pid,
+            "title": self.title,
+            "current_command": self.current_command,
+            "current_path": self.current_path,
+            "active": self.active,
+        }
+
+
+@dataclass
+class WindowInfo:
+    window_id: str
+    window_index: int
+    name: str
+    layout: str
+    active: bool
+    panes: list[PaneInfo] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "window_id": self.window_id,
+            "window_index": self.window_index,
+            "name": self.name,
+            "layout": self.layout,
+            "active": self.active,
+            "panes": [p.to_dict() for p in self.panes],
+        }
+
+
+@dataclass
+class SessionSnapshot:
+    session: SessionInfo
+    windows: list[WindowInfo]
+
+    def to_dict(self) -> dict:
+        return {
+            "session": self.session.to_dict(),
+            "windows": [w.to_dict() for w in self.windows],
         }
 
 
@@ -177,6 +231,120 @@ def kill_session(name: str) -> None:
     """Kill a tmux session."""
     require_session(name)
     _run(["kill-session", "-t", name])
+
+
+def get_session_info(name: str) -> SessionInfo:
+    """Get one tmux session record."""
+    require_session(name)
+    result = _run(
+        [
+            "list-sessions",
+            "-F",
+            "#{session_name}\t#{session_windows}\t#{session_created_string}\t#{session_attached}",
+        ]
+    )
+    for line in result.stdout.strip().splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 4 and parts[0] == name:
+            return SessionInfo(
+                name=parts[0],
+                windows=int(parts[1]),
+                created=parts[2],
+                attached=parts[3] != "0",
+            )
+    raise SessionNotFoundError(name)
+
+
+def list_windows(session: str) -> list[WindowInfo]:
+    """List windows for a tmux session."""
+    require_session(session)
+    result = _run(
+        [
+            "list-windows",
+            "-t",
+            session,
+            "-F",
+            "#{window_id}\t#{window_index}\t#{window_name}\t#{window_layout}\t#{window_active}",
+        ]
+    )
+    windows: list[WindowInfo] = []
+    for line in result.stdout.strip().splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 5:
+            windows.append(
+                WindowInfo(
+                    window_id=parts[0],
+                    window_index=int(parts[1]),
+                    name=parts[2],
+                    layout=parts[3],
+                    active=parts[4] != "0",
+                )
+            )
+    return windows
+
+
+def list_panes(session: str, window: str | None = None) -> list[PaneInfo]:
+    """List panes for a session or one specific window."""
+    require_session(session)
+    target = f"{session}:{window}" if window is not None else session
+    result = _run(
+        [
+            "list-panes",
+            "-t",
+            target,
+            "-F",
+            "#{pane_id}\t#{pane_index}\t#{pane_pid}\t#{pane_title}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_active}\t#{window_index}",
+        ]
+    )
+    panes: list[PaneInfo] = []
+    for line in result.stdout.strip().splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 8:
+            panes.append(
+                PaneInfo(
+                    pane_id=parts[0],
+                    pane_index=int(parts[1]),
+                    pane_pid=int(parts[2]),
+                    title=parts[3],
+                    current_command=parts[4],
+                    current_path=parts[5],
+                    active=parts[6] != "0",
+                )
+            )
+    return panes
+
+
+def inspect_session(session: str) -> SessionSnapshot:
+    """Return a full tmux discovery snapshot: session, windows, and panes."""
+    info = get_session_info(session)
+    windows = list_windows(session)
+    panes = _run(
+        [
+            "list-panes",
+            "-t",
+            session,
+            "-F",
+            "#{pane_id}\t#{pane_index}\t#{pane_pid}\t#{pane_title}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_active}\t#{window_index}",
+        ]
+    )
+    panes_by_window: dict[int, list[PaneInfo]] = {}
+    for line in panes.stdout.strip().splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 8:
+            window_index = int(parts[7])
+            pane = PaneInfo(
+                pane_id=parts[0],
+                pane_index=int(parts[1]),
+                pane_pid=int(parts[2]),
+                title=parts[3],
+                current_command=parts[4],
+                current_path=parts[5],
+                active=parts[6] != "0",
+            )
+            panes_by_window.setdefault(window_index, []).append(pane)
+    for window_info in windows:
+        window_info.panes = sorted(panes_by_window.get(window_info.window_index, []), key=lambda p: p.pane_index)
+    return SessionSnapshot(session=info, windows=windows)
 
 
 # --- Pane operations ---

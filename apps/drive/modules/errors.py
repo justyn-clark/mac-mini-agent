@@ -95,3 +95,38 @@ class KillPermissionError(DriveError):
     def __init__(self, pid: int):
         super().__init__(f"Permission denied killing PID {pid}")
         self.pid = pid
+
+
+class ApprovalNotFoundError(DriveError):
+    code = "approval_not_found"
+
+    def __init__(self, approval_id: str):
+        super().__init__(f"Approval not found: {approval_id}")
+        self.approval_id = approval_id
+
+
+class ApprovalExpiredError(DriveError):
+    code = "approval_expired"
+
+    def __init__(self, approval_id: str):
+        super().__init__(f"Approval expired: {approval_id}")
+        self.approval_id = approval_id
+
+
+class ApprovalRevokedError(DriveError):
+    code = "approval_revoked"
+
+    def __init__(self, approval_id: str, reason: str | None = None):
+        msg = f"Approval revoked: {approval_id}"
+        if reason:
+            msg += f" ({reason})"
+        super().__init__(msg)
+        self.approval_id = approval_id
+
+
+class ApprovalExhaustedError(DriveError):
+    code = "approval_exhausted"
+
+    def __init__(self, approval_id: str):
+        super().__init__(f"Approval already consumed: {approval_id}")
+        self.approval_id = approval_id

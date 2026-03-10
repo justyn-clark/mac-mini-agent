@@ -32,6 +32,8 @@ The Mac Mini Agent solves this with four purpose-built CLIs.
 
 Two Skills, Four CLIs. Many Macs. Full agent autonomy.
 
+The control model is deliberately split between inspect and act. Agents should observe first, act through narrowly-scoped verbs second, and verify after. For destructive terminal actions, Drive now supports expiring, revocable, single-use approval contracts.
+
 ---
 
 ## Who Is This For?
@@ -99,12 +101,14 @@ Drive gives agents full programmatic control over tmux sessions — creating ter
 
 | Command   | Purpose                                                  |
 | --------- | -------------------------------------------------------- |
-| `session` | Create, list, and manage tmux sessions                   |
+| `session` | Create, list, inspect, and manage tmux sessions         |
 | `run`     | Execute a command in a tmux pane and wait for completion |
 | `send`    | Send keystrokes to a tmux pane                           |
 | `logs`    | Capture pane output (capture-pane)                       |
 | `poll`    | Wait for a sentinel marker indicating command completion |
 | `fanout`  | Execute commands across multiple panes in parallel       |
+| `proc`    | Inspect, tree, snapshot, and kill processes              |
+| `approval`| Issue and consume short-lived approval contracts         |
 
 #### The Sentinel Pattern
 
